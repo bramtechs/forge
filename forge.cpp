@@ -50,6 +50,7 @@ std::vector<std::pair<std::string,std::string>> REQUIRED_REPOS = {
 #include <errno.h>
 #include <initializer_list>
 #include <filesystem>
+#include <unordered_map>
 #include <sstream>
 #include <thread>
 
@@ -65,7 +66,7 @@ std::vector<std::pair<std::string,std::string>> REQUIRED_REPOS = {
 #include <sys/stat.h>
 #include <sys/types.h>
 
-#define PATH_SEP '/'
+#define PATH_SEP std::filesystem::path::preferred_separator
 
 bool subfiles_exist(std::string path) {
     int count = 0;
@@ -122,9 +123,91 @@ bool delete_recursive(std::string path){
     }
 }
 
-bool check(){
-    std::cout << "UNIMPLEMENTED!" << std::endl;
-    return true;
+typedef std::unordered_map<std::string,std::string> Table;
+
+void print_table(Table table, int padding=3){
+    // calculate longest width first
+    int width = 0;
+    for (const auto& cmd : table){
+        int len = cmd.first.length();
+        if (len > width){
+            width = len;
+        }
+    }
+    width += padding;
+
+    // print the table
+    std::cout << std::endl;
+    for (const auto& cmd : table){
+
+        // pad string
+        std::stringstream displayName;
+        displayName << cmd.first;
+
+        int spaces = width - cmd.first.length();
+        for (int i = 0; i < spaces; i++){
+            displayName << " ";
+        }
+
+        std::cout << displayName.str() << cmd.second << std::endl;
+    }
+}
+
+bool has_program(std::string program){
+    const char* pathVar = std::getenv("PATH");
+    if (pathVar == NULL){
+        std::cerr << "Could not determine PATH variable" << std::endl;
+        return false;
+    }
+
+#ifdef LINUX
+    char seperator = ':';
+#elif defined(WINDOWS)
+    char seperator = ';';
+#endif
+
+    // TODO: there is probably a faster way to do this
+    std::string path;
+    std::istringstream stream(pathVar);
+    while (std::getline(stream, path, ';')) {
+        auto folder = std::filesystem::path(path);
+        if (std::filesystem::exists(folder)) {
+            for (const auto& file : std::filesystem::directory_iterator(folder)) {
+                std::string stem = file.path().stem().string();
+                if (stem == program) {
+                    return true;
+                }
+            }
+        }
+    }
+    return false;
+}
+
+// TODO: linux
+bool check(bool verbose=false){
+    bool good = true;
+    Table table;
+    for (const auto& tool : REQUIRED_TOOLS){
+        std::string desc;
+        if (has_program(tool)){
+            desc = "FOUND";
+        }else{
+            desc = "MISSING";
+            good = false;
+        }
+        table.insert({tool,desc});
+    }
+    if (!good || verbose){
+        print_table(table);
+    }
+    if (!good){
+        std::cout << "You are missing required software!" << std::endl;
+    }
+    return good;
+}
+
+bool check_verbose(){
+    return check(true);
 }
 
 bool clean(){
@@ -269,7 +352,7 @@ struct Command {
 // valid commands
 bool help();
 std::vector<Command> COMMANDS = {
-    { "check", "Check if required programs are installed (TODO)", check },
+    { "check", "Check if required programs are installed", check_verbose },
     { "download", "Clone required libraries from Github or merge new commits.", download },
     { "gen", "Generate CMake project files", generate },
     { "generate", "Generate CMake project files (alias)", generate },
@@ -278,36 +361,17 @@ std::vector<Command> COMMANDS = {
     { "package", "Build and package optimized executable", package },
     { "run", "Run executable (debug)", rundebug },
     { "runrel", "Run executable (release)", runrel },
-    { "wipe", "Remove all cloned libraries (use if things broke)", wipe },
     { "clean", "Remove build folder", clean },
+    { "wipe", "Remove all downloaded libraries (use if something broke)", wipe },
     { "help", "Show this screen", help },
 };
 
 bool help(){
-    // calculate longest width first
-    int width = 0;
+    Table table;
     for (const auto& cmd : COMMANDS){
-        int len = cmd.name.length();
-        if (len > width){
-            width = len;
-        }
+        table.insert({cmd.name,cmd.desc});
     }
-    width += 3;
-
-    std::cout << std::endl;
-    for (const auto& cmd : COMMANDS){
-
-        // pad string
-        std::stringstream displayName;
-        displayName << cmd.name;
-
-        int spaces = width - cmd.name.length();
-        for (int i = 0; i < spaces; i++){
-            displayName << " ";
-        }
-
-        std::cout << displayName.str() << cmd.desc << std::endl;
-    }
+    print_table(table);
     return true;
 }
 
@@ -349,11 +413,11 @@ bool relocate(){
 
 bool find_cmake_project(){
     if (!std::filesystem::exists("CMakeLists.txt")){
-        std::cout << "Execution directory does not contain CMakeLists.txt!" << std::endl;
-        std::cout << "Looking in parent directory..." << std::endl;
+        //std::cout << "Execution directory does not contain CMakeLists.txt!" << std::endl;
+        //std::cout << "Looking in parent directory..." << std::endl;
         if (relocate()){
             if (std::filesystem::exists("CMakeLists.txt")){
-                std::cout << "Found CMakeLists!" << std::endl;
+                //std::cout << "Found CMakeLists!" << std::endl;
                 return true;
             }else{
                 std::cout << "Didn't find CMakeLists.txt!" << std::endl;
@@ -361,7 +425,7 @@ bool find_cmake_project(){
         }
         return false;
     }
-    std::cout << "Found CMakeLists!" << std::endl;
+    //std::cout << "Found CMakeLists!" << std::endl;
     return true;
 }
 
@@ -373,7 +437,7 @@ int main(int argc, char** argv) {
     }
 
     // check if cmake file found
-    if (!find_cmake_project()){
+    if (!find_cmake_project() || !check()){
         return EXIT_FAILURE;
     }
 
