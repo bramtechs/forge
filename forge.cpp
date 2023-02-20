@@ -17,6 +17,16 @@
 // set to true if configured properly
 constexpr bool IS_CONFIGURED = false;
 
+// executable file
+#ifdef LINUX
+std::string EXECUTABLE_DEBUG = "build/Debug/forge_example.exe";
+std::string EXECUTABLE_RELEASE = "build/Release/forge_example.exe";
+#elif defined(WINDOWS)
+// TODO:
+std::string EXECUTABLE_DEBUG = "build/Debug/forge_example.exe";
+std::string EXECUTABLE_RELEASE = "build/Release/forge_example.exe";
+#endif
+
 // UNIMPLEMENTED: tools required to build the program
 std::vector<std::string> REQUIRED_TOOLS = {
     "cmake",
@@ -221,7 +231,24 @@ bool package(){
 }
 
 bool run() {
-    std::cout << "Running..." << std::endl;
+    if (!release()){
+        return false;
+    }
+    if (std::filesystem::exists(EXECUTABLE_DEBUG)) {
+        return run_command({EXECUTABLE_DEBUG});
+    }
+    std::cerr << "Debug executable does not exist!" << std::endl;
+    return false;
+}
+
+bool runrel() {
+    if (!release()){
+        return false;
+    }
+    if (std::filesystem::exists(EXECUTABLE_RELEASE)) {
+        return run_command({EXECUTABLE_RELEASE});
+    }
+    std::cerr << "Release executable does not exist!" << std::endl;
     return false;
 }
 
@@ -244,7 +271,8 @@ std::vector<Command> COMMANDS = {
     { "build", "Build project (for debugging)", build },
     { "release", "Build optimized executable", release },
     { "package", "Build and package optimized executable", package },
-    { "run", "Run executable", run },
+    { "run", "Run executable (debug)", run },
+    { "runrel", "Run executable (release)", runrel },
     { "wipe", "Remove all cloned libraries (use if things broke)", wipe },
     { "clean", "Remove build folder", clean },
     { "help", "Show this screen", help },
