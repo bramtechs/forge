@@ -44,6 +44,7 @@ help       Show this screen
 After running ```forge.bat``` once, you can run ```forge.exe``` or ```forge/forge.exe``` instead.
 
 ## TODO
+- [ ] Automatically apply lib/build folders to .gitignore
 - [ ] Add github workflow 
 - [ ] Add release packaging support
 - [ ] Add configurable build folder
