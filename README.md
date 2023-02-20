@@ -18,7 +18,9 @@ Easy to use cross-platform build system running on top of CMake, written in C++.
 - Run ```forge.exe [OPTION]``` from cmake root directory or forge subdirectory
 
 ### Example
-Using ```Native Tools Command Prompt For Visual Studio```:
+- Look at the [forge-example](https://github.com/bramtechs/forge-example) repo!
+
+- Using ```Native Tools Command Prompt For Visual Studio```:
 
 ```
 > cd forge
