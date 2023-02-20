@@ -15,7 +15,7 @@
 // =============================
 
 // set to true if configured properly
-constexpr bool IS_CONFIGURED = false;
+constexpr bool IS_CONFIGURED = true;
 
 // executable file
 #ifdef LINUX
@@ -40,8 +40,7 @@ std::vector<std::string> REQUIRED_TOOLS = {
 
 // online libraries required to build the program
 std::vector<std::pair<std::string,std::string>> REQUIRED_REPOS = {
-    { "magma/raylib","https://github.com/raysan5/raylib" },
-    { "magma/box2d","https://github.com/tobanteGaming/Box2D-cmake.git" },
+    { "libs/raylib","https://github.com/bramtechs/raylib-lite.git" },
 };
 
 // =============================
@@ -230,15 +229,24 @@ bool package(){
     return false;
 }
 
-bool run() {
+bool run(std::string& path) {
+    std::string file = fs::path(path).filename();
+    std::string folder = fs::path(path).parent_path();
+
+    if (std::filesystem::exists(path)) {
+        // TODO: might not work on linux
+        return run_command({"cd", folder, "&", file });
+    }
+
+    std::cerr << "Executable " << path << "does not exist!" << std::endl;
+    return false;
+}
+
+bool rundebug() {
     if (!release()){
         return false;
     }
-    if (std::filesystem::exists(EXECUTABLE_DEBUG)) {
-        return run_command({EXECUTABLE_DEBUG});
-    }
-    std::cerr << "Debug executable does not exist!" << std::endl;
-    return false;
+    return run();
 }
 
 bool runrel() {
@@ -249,7 +257,7 @@ bool runrel() {
         return run_command({EXECUTABLE_RELEASE});
     }
     std::cerr << "Release executable does not exist!" << std::endl;
-    return false;
+    return run();
 }
 
 // === main cli functions
@@ -271,7 +279,7 @@ std::vector<Command> COMMANDS = {
     { "build", "Build project (for debugging)", build },
     { "release", "Build optimized executable", release },
     { "package", "Build and package optimized executable", package },
-    { "run", "Run executable (debug)", run },
+    { "run", "Run executable (debug)", rundebug },
     { "runrel", "Run executable (release)", runrel },
     { "wipe", "Remove all cloned libraries (use if things broke)", wipe },
     { "clean", "Remove build folder", clean },
