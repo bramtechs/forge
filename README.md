@@ -38,6 +38,8 @@ clean      Remove build folder
 help       Show this screen
 ```
 
+After running ```forge.bat``` once, you can run ```forge.exe``` or ```forge/forge.exe``` instead.
+
 ## TODO
 - [ ] Add release packaging support
 - [ ] Add tool checking
