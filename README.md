@@ -1,7 +1,7 @@
 # forge
 Easy to use cross-platform build system running on top of CMake, written in C++.
 
-> Early in development
+> Early in development UNTESTED ON LINUX
 >
 > Not related to [Minecraft Forge](https://files.minecraftforge.net/net/minecraftforge/forge/)!
 
