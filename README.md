@@ -3,6 +3,8 @@ Easy to use cross-platform build system running on top of CMake, written in C++.
 
 > Not related to [Minecraft Forge](https://files.minecraftforge.net/net/minecraftforge/forge/)!
 
+> Early in development
+
 ## Dependencies
 - git (command line)
 - cmake
