@@ -230,8 +230,9 @@ bool package(){
 }
 
 bool run(std::string& path) {
-    std::string file = std::filesystem::path(path).filename();
-    std::string folder = std::filesystem::path(path).parent_path();
+    auto p = std::filesystem::path(path.c_str());
+    std::string file = p.filename().string();
+    std::string folder = p.parent_path().string();
 
     if (std::filesystem::exists(path)) {
         // TODO: might not work on linux
