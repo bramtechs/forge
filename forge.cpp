@@ -230,8 +230,8 @@ bool package(){
 }
 
 bool run(std::string& path) {
-    std::string file = fs::path(path).filename();
-    std::string folder = fs::path(path).parent_path();
+    std::string file = std::filesystem::path(path).filename();
+    std::string folder = std::filesystem::path(path).parent_path();
 
     if (std::filesystem::exists(path)) {
         // TODO: might not work on linux
@@ -246,18 +246,14 @@ bool rundebug() {
     if (!release()){
         return false;
     }
-    return run();
+    return run(EXECUTABLE_DEBUG);
 }
 
 bool runrel() {
     if (!release()){
         return false;
     }
-    if (std::filesystem::exists(EXECUTABLE_RELEASE)) {
-        return run_command({EXECUTABLE_RELEASE});
-    }
-    std::cerr << "Release executable does not exist!" << std::endl;
-    return run();
+    return run(EXECUTABLE_RELEASE);
 }
 
 // === main cli functions
