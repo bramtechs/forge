@@ -1,9 +1,8 @@
 # forge
 Easy to use cross-platform build system running on top of CMake, written in C++.
 
-> Not related to [Minecraft Forge](https://files.minecraftforge.net/net/minecraftforge/forge/)!
-
 > Early in development
+> Not related to [Minecraft Forge](https://files.minecraftforge.net/net/minecraftforge/forge/)!
 
 ## Dependencies
 - git (command line)
@@ -13,7 +12,7 @@ Easy to use cross-platform build system running on top of CMake, written in C++.
 ## Usage
 
 - Add forge as a submodule in your existing CMake git project
-- Edit project settings in ```forge.cpp```
+- **IMPORTANT:** Edit project settings in ```forge.cpp```
 - Compile with ```forge.bat``` or ```forge.sh```
 - Run ```forge.exe [OPTION]``` from cmake root directory or forge subdirectory
 
@@ -41,6 +40,8 @@ help       Show this screen
 After running ```forge.bat``` once, you can run ```forge.exe``` or ```forge/forge.exe``` instead.
 
 ## TODO
+- [ ] Add github workflow 
 - [ ] Add release packaging support
-- [ ] Add tool checking
+- [ ] Add configurable build folder
 - [ ] Add generator settings
+- [X] Add tool checking

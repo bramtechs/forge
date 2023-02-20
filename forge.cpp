@@ -118,6 +118,7 @@ bool delete_recursive(std::string path){
         return true;
     } catch (std::filesystem::filesystem_error const& ex){
         std::cerr << "Failed to remove directories!" << std::endl;
+        std::cerr << "TODO: You'll need to manually remove the folder for now." << std::endl;
         std::cerr << ex.what() << std::endl;
         return false;
     }
@@ -225,6 +226,8 @@ bool wipe(){
             return false;
         }
     }
+    std::cout << "Wiping build folder!" << std::endl;
+    delete_recursive("build");
     return true;
 }
 
@@ -284,9 +287,9 @@ bool build() {
     unsigned int threads = std::thread::hardware_concurrency();
     std::cout << "Building cmake project..." << std::endl;
     if (threads > 0){
-        return run_command({"cmake", "--build", "build", "-j", std::to_string(threads)});
+        return run_command({"cmake", "--build", "build", "-j", std::to_string(threads), "--config", "Debug"});
     }
-    return run_command({"cmake", "--build", "build"});
+    return run_command({"cmake", "--build", "build", "--config", "Debug"});
 }
 
 bool release() {
@@ -322,12 +325,12 @@ bool run(std::string& path) {
         return run_command({"cd", folder, "&", file });
     }
 
-    std::cerr << "Executable " << path << "does not exist!" << std::endl;
+    std::cerr << "Executable " << path << " does not exist!" << std::endl;
     return false;
 }
 
 bool rundebug() {
-    if (!release()){
+    if (!build()){
         return false;
     }
     return run(EXECUTABLE_DEBUG);
@@ -362,7 +365,7 @@ std::vector<Command> COMMANDS = {
     { "run", "Run executable (debug)", rundebug },
     { "runrel", "Run executable (release)", runrel },
     { "clean", "Remove build folder", clean },
-    { "wipe", "Remove all downloaded libraries (use if something broke)", wipe },
+    { "wipe", "clean + remove downloaded libraries", wipe },
     { "help", "Show this screen", help },
 };
 
