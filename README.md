@@ -24,16 +24,17 @@ Using ```Native Tools Command Prompt For Visual Studio```:
 > forge.bat
 > forge.exe help
 
-check      Check if required programs are installed (TODO)
+check      Check if required programs are installed
 download   Clone required libraries from Github or merge new commits.
 gen        Generate CMake project files
+run        Run executable (debug)
+runrel     Run executable (release)
 generate   Generate CMake project files (alias)
+package    Build and package optimized executable (NOT IMPLEMENTED)
 build      Build project (for debugging)
 release    Build optimized executable
-package    Build and package optimized executable (TODO)
-run        Run executable
-wipe       Remove all cloned libraries (use if things broke)
 clean      Remove build folder
+wipe       clean + remove downloaded libraries
 help       Show this screen
 ```
 
