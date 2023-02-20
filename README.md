@@ -12,7 +12,10 @@ Easy to use cross-platform build system running on top of CMake, written in C++.
 
 ## Usage
 
-- Add forge as a submodule in your existing CMake git project
+- Add forge as a submodule to your existing CMake git project
+```
+git submodule add https://github.com/bramtechs/forge
+```
 - **IMPORTANT:** Edit project settings in ```forge.cpp```
 - Compile with ```forge.bat``` or ```forge.sh```
 - Run ```forge.exe [OPTION]``` from cmake root directory or forge subdirectory
