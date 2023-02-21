@@ -94,8 +94,7 @@ std::string concat_sep(char sep, std::initializer_list<std::string> list) {
     return result;
 }
 
-bool make_dirs(std::initializer_list<std::string> list){
-    std::string path = concat_sep(PATH_SEP,list);
+bool make_dirs(std::string path){
     try {
         std::filesystem::create_directories(path);
         return true;
@@ -314,9 +313,10 @@ bool release() {
     return run_command({"cmake", "--build", "build", "--config", "Release"});
 }
 
-bool archive_file(miniz_cpp::zip_file& file, std::string& source,
-                                             std::string& dest){
-    if (!std::filesystem::exists(path)){
+bool archive_file(miniz_cpp::zip_file& file, std::string source,
+                                             std::string dest){
+    if (!std::filesystem::exists(source)){
+        std::cerr << "Could not find file " << source << " to archive!" << std::endl;
         return false;
     }
 
@@ -326,7 +326,7 @@ bool archive_file(miniz_cpp::zip_file& file, std::string& source,
         std::ifstream stream(source);
         std::stringstream buffer;
         buffer << stream.rdbuf();
-        data = buffer.string();
+        data = buffer.str();
     } catch (std::exception const& ex){
         std::cerr << "Failed to read file data of " << source << std::endl;
         std::cerr << ex.what() << std::endl;
@@ -347,16 +347,21 @@ bool archive_file(miniz_cpp::zip_file& file, std::string& source,
 }
 
 bool package(){
+    std::cout << "Compiling and packaging release build!" << std::endl;
+
     if (!release()){
         return false;
     }
 
-    make_dirs("releases");
+    if (!make_dirs("releases")){
+        return false;
+    }
 
     // package all the things
     miniz_cpp::zip_file zipFile;
 
-    if (!archive_file(zipFile, EXECUTABLE_RELEASE)){
+    auto fileName = std::filesystem::path(EXECUTABLE_RELEASE).filename();
+    if (!archive_file(zipFile, EXECUTABLE_RELEASE, fileName.string())){
         return false;
     }
 
@@ -366,9 +371,10 @@ bool package(){
         }
     }
 
-    file.save("releases/build.zip");
+    zipFile.save("releases/build.zip");
 
-    return false;
+    std::cout << "Wrote release archive!" << std::endl;
+    return true;
 }
 
 bool run(std::string& path) {
