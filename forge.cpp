@@ -28,9 +28,9 @@ std::string EXECUTABLE_RELEASE = "build/Release/forge_example.exe";
 #endif
 
 // additional files/folders that should be packaged in zip (package command)
-std::vector<std::string> ADDITIONAL_FILES = {
-    "src",
-    "LICENSE.txt"
+std::vector<std::pair<std::string,std::string>> ADDITIONAL_FILES = {
+    { "src", "source" },
+    { "LICENSE.txt", NULL}
 };
 
 // UNIMPLEMENTED: tools required to build the program
@@ -314,12 +314,59 @@ bool release() {
     return run_command({"cmake", "--build", "build", "--config", "Release"});
 }
 
+bool archive_file(miniz_cpp::zip_file& file, std::string& source,
+                                             std::string& dest){
+    if (!std::filesystem::exists(path)){
+        return false;
+    }
+
+    // read file bytes
+    std::string data;
+    try {
+        std::ifstream stream(source);
+        std::stringstream buffer;
+        buffer << stream.rdbuf();
+        data = buffer.string();
+    } catch (std::exception const& ex){
+        std::cerr << "Failed to read file data of " << source << std::endl;
+        std::cerr << ex.what() << std::endl;
+        return false;
+    }
+
+    try {
+        // write into archive
+        std::cout << data << std::endl;
+        file.writestr(dest, data);
+    } catch(std::runtime_error const& ex){
+        std::cerr << "Failed to write file " << source << " into archive at " << dest << std::endl;
+        std::cerr << ex.what() << std::endl;
+        return false;
+    }
+
+    return true;
+}
+
 bool package(){
     if (!release()){
         return false;
     }
 
+    make_dirs("releases");
+
     // package all the things
+    miniz_cpp::zip_file zipFile;
+
+    if (!archive_file(zipFile, EXECUTABLE_RELEASE)){
+        return false;
+    }
+
+    for (const auto& file : ADDITIONAL_FILES){
+        if (!archive_file(zipFile, file.first, file.second)){
+            return false;
+        }
+    }
+
+    file.save("releases/build.zip");
 
     return false;
 }
