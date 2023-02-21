@@ -50,6 +50,3 @@ After running ```forge.bat``` once, you can run ```forge.exe``` or ```forge/forg
 - [ ] Automatically apply lib/build folders to .gitignore
 - [ ] Add github workflow 
 - [ ] Add release packaging support
-- [ ] Add configurable build folder
-- [ ] Add generator settings
-- [X] Add tool checking

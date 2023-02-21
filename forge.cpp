@@ -1,6 +1,3 @@
-// Based on Tsoding Daily: New Build System in C — Part 1
-// https://youtu.be/n47AFxc1ksE
-
 #include <iostream>
 #include <vector>
 
@@ -14,27 +11,36 @@
 // === PROJECT CONFIGURATION ===
 // =============================
 
-// set to true if configured properly
-constexpr bool IS_CONFIGURED = true;
+#define CHECK_GITIGNORE
+
+const std::string RELEASES_DIRECTORY = "releases";
+const std::string BUILD_DIRECTORY = "build";
 
 // executable file
 #ifdef LINUX
-std::string EXECUTABLE_DEBUG = "build/Debug/forge_example.exe";
-std::string EXECUTABLE_RELEASE = "build/Release/forge_example.exe";
+const std::string EXECUTABLE_DEBUG = "build/Debug/forge_example.exe";
+const std::string EXECUTABLE_RELEASE = "build/Release/forge_example.exe";
 #elif defined(WINDOWS)
 // TODO:
-std::string EXECUTABLE_DEBUG = "build/Debug/forge_example.exe";
-std::string EXECUTABLE_RELEASE = "build/Release/forge_example.exe";
+const std::string EXECUTABLE_DEBUG = "build/Debug/forge_example.exe";
+const std::string EXECUTABLE_RELEASE = "build/Release/forge_example.exe";
+#endif
+
+// cmake generator
+#ifdef LINUX
+std::string CMAKE_GENERATOR = "CodeBlocks - Unix Makefiles";
+#elif defined(WINDOWS)
+std::string CMAKE_GENERATOR = "Visual Studio 17 2022";
 #endif
 
 // additional files/folders that should be packaged in zip (package command)
-std::vector<std::pair<std::string,std::string>> ADDITIONAL_FILES = {
+const std::vector<std::pair<std::string,std::string>> ADDITIONAL_FILES = {
     { "src", "source" },
     { "LICENSE.txt", NULL}
 };
 
-// UNIMPLEMENTED: tools required to build the program
-std::vector<std::string> REQUIRED_TOOLS = {
+// Necessary tools to build the program (searches in PATH)
+const std::vector<std::string> REQUIRED_TOOLS = {
     "cmake",
     "git",
 #ifdef LINUX
@@ -44,7 +50,7 @@ std::vector<std::string> REQUIRED_TOOLS = {
 #endif
 };
 
-// online libraries required to build the program
+// Online libraries required to build the program (folder + url)
 std::vector<std::pair<std::string,std::string>> REQUIRED_REPOS = {
     { "libs/raylib","https://github.com/bramtechs/raylib-lite.git" },
 };
@@ -73,7 +79,7 @@ std::vector<std::pair<std::string,std::string>> REQUIRED_REPOS = {
 #include <sys/stat.h>
 #include <sys/types.h>
 
-#define PATH_SEP std::filesystem::path::preferred_separator
+const wchar_t PATH_SEP = std::filesystem::path::preferred_separator;
 
 bool subfiles_exist(std::string path) {
     int count = 0;
@@ -218,8 +224,8 @@ bool check_verbose(){
 }
 
 bool clean(){
-    if (std::filesystem::exists("build")){
-        return delete_recursive("build");
+    if (std::filesystem::exists(BUILD_DIRECTORY)){
+        return delete_recursive(BUILD_DIRECTORY);
     }
     return true;
 }
@@ -233,7 +239,7 @@ bool wipe(){
         }
     }
     std::cout << "Wiping build folder!" << std::endl;
-    delete_recursive("build");
+    delete_recursive(BUILD_DIRECTORY);
     return true;
 }
 
@@ -270,21 +276,66 @@ bool download() {
     return true;
 }
 
+void insert_if_missing(std::stringstream& stream, const std::string& text){
+    std::string line;
+    while (std::getline(stream,line)){
+        if (line == text){
+            // doesn't need to be added
+            return;
+        }
+    }
+    // add text to stream
+    stream << std::endl << text;
+    std::cout << "Added " << text << " to .gitignore" << std::endl;
+}
+
+#ifdef CHECK_GITIGNORE
+void check_gitignore() {
+    if (std::filesystem::exists(".gitignore")){
+        std::cout << "Patching .gitignore..." << std::endl;
+
+        // read the file
+        std::ifstream ignoreFile(".gitignore");
+        std::string content;
+        ignoreFile >> content;
+        ignoreFile.close();
+
+
+        // process file text 
+        std::stringstream stream(content);
+
+        insert_if_missing(stream, BUILD_DIRECTORY);
+        insert_if_missing(stream, RELEASES_DIRECTORY);
+
+        std::cout << stream.str() << std::endl;
+
+        // write back into file
+        std::ofstream ignoreFileOut(".gitignore");
+        ignoreFileOut << stream.str();
+        ignoreFileOut.close();
+    }
+}
+#endif
+
 bool generate() {
+#ifdef CHECK_GITIGNORE
+    check_gitignore();
+#endif
+
     if (!download()){
         return false;
     }
 
     std::cout << "Generating cmake project..." << std::endl;
 #ifdef LINUX
-    return run_command({"cmake", "-S", ".", "-B", "build", "-G", "\"CodeBlocks - Unix Makefiles\"" });
+    return run_command({"cmake", "-S", ".", "-B", "build", "-G", "\"",CMAKE_GENERATOR,"\"" });
 #elif defined(WINDOWS)
-    return run_command({"cmake", "-S", ".", "-B", "build", "-G", "\"Visual Studio 17 2022\"", "-A", "Win32"});
+    return run_command({"cmake", "-S", ".", "-B", "build", "-G", "\"", CMAKE_GENERATOR,"\"", "-A", "Win32"});
 #endif
 }
 
 bool build() {
-    if (!std::filesystem::exists("build")){
+    if (!std::filesystem::exists(BUILD_DIRECTORY)){
         if (!generate()){
             return false;
         }
@@ -299,7 +350,7 @@ bool build() {
 }
 
 bool release() {
-    if (!std::filesystem::exists("build")){
+    if (!std::filesystem::exists(BUILD_DIRECTORY)){
         if (!generate()){
             return false;
         }
@@ -353,7 +404,7 @@ bool package(){
         return false;
     }
 
-    if (!make_dirs("releases")){
+    if (!make_dirs(RELEASES_DIRECTORY)){
         return false;
     }
 
@@ -371,9 +422,11 @@ bool package(){
         }
     }
 
-    zipFile.save("releases/build.zip");
-
+    // save the archive
+    std::string savePath = concat_sep(PATH_SEP,{RELEASES_DIRECTORY,"build.zip"});
+    zipFile.save(savePath);
     std::cout << "Wrote release archive!" << std::endl;
+
     return true;
 }
 
@@ -506,13 +559,8 @@ int main(int argc, char** argv) {
         return EXIT_FAILURE;
     }
 
-    if (IS_CONFIGURED){
-        if (run_option(option)){
-            return EXIT_SUCCESS;
-        }
-    }else{
-        std::cout << "Edit forge.cpp first and configure the program!" << std::endl;
+    if (run_option(option)){
+        return EXIT_SUCCESS;
     }
-
     return EXIT_FAILURE;
 }
