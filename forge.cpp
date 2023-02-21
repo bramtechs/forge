@@ -27,6 +27,12 @@ std::string EXECUTABLE_DEBUG = "build/Debug/forge_example.exe";
 std::string EXECUTABLE_RELEASE = "build/Release/forge_example.exe";
 #endif
 
+// additional files/folders that should be packaged in zip (package command)
+std::vector<std::string> ADDITIONAL_FILES = {
+    "src",
+    "LICENSE.txt"
+};
+
 // UNIMPLEMENTED: tools required to build the program
 std::vector<std::string> REQUIRED_TOOLS = {
     "cmake",
@@ -53,6 +59,7 @@ std::vector<std::pair<std::string,std::string>> REQUIRED_REPOS = {
 #include <unordered_map>
 #include <sstream>
 #include <thread>
+#include "zip_file.hpp"
 
 #ifdef __linux__
 #include <string.h>
@@ -311,6 +318,8 @@ bool package(){
     if (!release()){
         return false;
     }
+
+    // package all the things
 
     return false;
 }
