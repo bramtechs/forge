@@ -11,10 +11,10 @@ if exist forge/forge.exe goto RUN
 
 echo Compiling for the first time...
 if exist forge.cpp (
-    cl /EHsc /std:c++17 /O2 forge.cpp || set succ=0
+    cl /EHsc /std:c++17 /O2 forge.cpp /DEBUG:FULL || set succ=0
 ) else (
     pushd forge
-    cl /EHsc /std:c++17 /O2 forge.cpp || set succ=0
+    cl /EHsc /std:c++17 /O2 forge.cpp /DEBUG:FULL || set succ=0
     popd ..
 )
 
