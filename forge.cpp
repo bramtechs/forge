@@ -1,5 +1,6 @@
 #include <iostream>
 #include <vector>
+#include <unordered_map>
 
 #ifdef __linux__
     #define LINUX
@@ -13,8 +14,8 @@
 
 #define CHECK_GITIGNORE
 
-const std::string RELEASES_DIRECTORY = "releases";
-const std::string BUILD_DIRECTORY = "build";
+std::string RELEASES_DIRECTORY = "releases";
+std::string BUILD_DIRECTORY = "build";
 
 // executable file
 #ifdef LINUX
@@ -22,8 +23,8 @@ const std::string EXECUTABLE_DEBUG = "build/Debug/forge_example.exe";
 const std::string EXECUTABLE_RELEASE = "build/Release/forge_example.exe";
 #elif defined(WINDOWS)
 // TODO:
-const std::string EXECUTABLE_DEBUG = "build/Debug/forge_example.exe";
-const std::string EXECUTABLE_RELEASE = "build/Release/forge_example.exe";
+std::string EXECUTABLE_DEBUG = "build/Debug/forge_example.exe";
+std::string EXECUTABLE_RELEASE = "build/Release/forge_example.exe";
 #endif
 
 // cmake generator
@@ -34,9 +35,9 @@ std::string CMAKE_GENERATOR = "Visual Studio 17 2022";
 #endif
 
 // additional files/folders that should be packaged in zip (package command)
-const std::vector<std::pair<std::string,std::string>> ADDITIONAL_FILES = {
+std::unordered_map<std::string,std::string> ADDITIONAL_FILES = {
     { "src", "source" },
-    { "LICENSE.txt", NULL}
+    { "LICENSE.txt", ""}
 };
 
 // Necessary tools to build the program (searches in PATH)
@@ -62,7 +63,6 @@ std::vector<std::pair<std::string,std::string>> REQUIRED_REPOS = {
 #include <errno.h>
 #include <initializer_list>
 #include <filesystem>
-#include <unordered_map>
 #include <sstream>
 #include <thread>
 #include "zip_file.hpp"
@@ -79,122 +79,20 @@ std::vector<std::pair<std::string,std::string>> REQUIRED_REPOS = {
 #include <sys/stat.h>
 #include <sys/types.h>
 
-const wchar_t PATH_SEP = std::filesystem::path::preferred_separator;
-
-bool subfiles_exist(std::string path) {
-    int count = 0;
-    for (const auto& file : std::filesystem::directory_iterator(path)){
-        if (!file.is_directory()){
-            count++;
-        }
-    }
-    return count > 0;
-}
-
-std::string concat_sep(char sep, std::initializer_list<std::string> list) {
-    std::string result = "";
-    for (const auto elem : list) {
-        result += elem;
-        result += sep;
-    }
-    return result;
-}
-
-bool make_dirs(std::string path){
-    try {
-        std::filesystem::create_directories(path);
-        return true;
-    } catch(std::filesystem::filesystem_error const& ex){
-        std::cerr << "Failed to create directories!" << std::endl;
-        std::cerr << ex.what() << std::endl;
-        return false;
-    }
-}
-
-bool run_command(std::initializer_list<std::string> list){
-    if (!system(NULL)){
-        std::cerr << "No command processor found!" << std::endl;
-        return false;
-    }
-
-    std::string cmd = concat_sep(' ',list);
-    std::cout << ">> " << cmd << std::endl;
-
-    int code = system(cmd.c_str());
-    return code == 0;
-}
-
-bool delete_recursive(std::string path){
-    try {
-        std::filesystem::remove_all(path);
-        return true;
-    } catch (std::filesystem::filesystem_error const& ex){
-        std::cerr << "Failed to remove directories!" << std::endl;
-        std::cerr << "TODO: You'll need to manually remove the folder for now." << std::endl;
-        std::cerr << ex.what() << std::endl;
-        return false;
-    }
-}
+namespace fs = std::filesystem;
 
 typedef std::unordered_map<std::string,std::string> Table;
 
-void print_table(Table table, int padding=3){
-    // calculate longest width first
-    int width = 0;
-    for (const auto& cmd : table){
-        int len = cmd.first.length();
-        if (len > width){
-            width = len;
-        }
-    }
-    width += padding;
+const wchar_t PATH_SEP = fs::path::preferred_separator;
 
-    // print the table
-    std::cout << std::endl;
-    for (const auto& cmd : table){
-
-        // pad string
-        std::stringstream displayName;
-        displayName << cmd.first;
-
-        int spaces = width - cmd.first.length();
-        for (int i = 0; i < spaces; i++){
-            displayName << " ";
-        }
-
-        std::cout << displayName.str() << cmd.second << std::endl;
-    }
-}
-
-bool has_program(std::string program){
-    const char* pathVar = std::getenv("PATH");
-    if (pathVar == NULL){
-        std::cerr << "Could not determine PATH variable" << std::endl;
-        return false;
-    }
-
-#ifdef LINUX
-    char seperator = ':';
-#elif defined(WINDOWS)
-    char seperator = ';';
-#endif
-
-    // TODO: there is probably a faster way to do this
-    std::string path;
-    std::istringstream stream(pathVar);
-    while (std::getline(stream, path, ';')) {
-        auto folder = std::filesystem::path(path);
-        if (std::filesystem::exists(folder)) {
-            for (const auto& file : std::filesystem::directory_iterator(folder)) {
-                std::string stem = file.path().stem().string();
-                if (stem == program) {
-                    return true;
-                }
-            }
-        }
-    }
-    return false;
-}
+// utility functions
+static bool subfiles_exist(std::string path);
+static bool make_dirs(std::string path);
+static std::string concat_sep(char sep, std::initializer_list<std::string> list);
+static bool run_command(std::initializer_list<std::string> list);
+static bool delete_recursive(std::string path);
+static void print_table(Table table, int padding=3);
+static bool has_program(std::string program);
 
 // TODO: linux
 bool check(bool verbose=false){
@@ -224,7 +122,7 @@ bool check_verbose(){
 }
 
 bool clean(){
-    if (std::filesystem::exists(BUILD_DIRECTORY)){
+    if (fs::exists(BUILD_DIRECTORY)){
         return delete_recursive(BUILD_DIRECTORY);
     }
     return true;
@@ -247,7 +145,7 @@ bool download() {
     // download libraries
     std::cout << "Checking if libraries are present..." << std::endl;
     for (const auto& repo : REQUIRED_REPOS) {
-        if (std::filesystem::exists(repo.first) && subfiles_exist(repo.first)) {
+        if (fs::exists(repo.first) && subfiles_exist(repo.first)) {
             std::cout << "Updating repo " << repo.first << std::endl;
 
             if (!run_command({"git", "fetch", repo.first, "-p"})){
@@ -260,7 +158,7 @@ bool download() {
         } else {
 
             // fail-safe if folder sticked around
-            if (std::filesystem::exists(repo.first)){ 
+            if (fs::exists(repo.first)){ 
                 std::cout << "Incomplete repo found! Wiping it..." << std::endl;
                 if (!delete_recursive(repo.first)){
                     return false;
@@ -291,7 +189,7 @@ void insert_if_missing(std::stringstream& stream, const std::string& text){
 
 #ifdef CHECK_GITIGNORE
 void check_gitignore() {
-    if (std::filesystem::exists(".gitignore")){
+    if (fs::exists(".gitignore")){
         std::cout << "Patching .gitignore..." << std::endl;
 
         // read the file
@@ -335,7 +233,7 @@ bool generate() {
 }
 
 bool build() {
-    if (!std::filesystem::exists(BUILD_DIRECTORY)){
+    if (!fs::exists(BUILD_DIRECTORY)){
         if (!generate()){
             return false;
         }
@@ -350,7 +248,7 @@ bool build() {
 }
 
 bool release() {
-    if (!std::filesystem::exists(BUILD_DIRECTORY)){
+    if (!fs::exists(BUILD_DIRECTORY)){
         if (!generate()){
             return false;
         }
@@ -366,7 +264,7 @@ bool release() {
 
 bool archive_file(miniz_cpp::zip_file& file, std::string source,
                                              std::string dest){
-    if (!std::filesystem::exists(source)){
+    if (!fs::exists(source)){
         std::cerr << "Could not find file " << source << " to archive!" << std::endl;
         return false;
     }
@@ -411,13 +309,14 @@ bool package(){
     // package all the things
     miniz_cpp::zip_file zipFile;
 
-    auto fileName = std::filesystem::path(EXECUTABLE_RELEASE).filename();
+    auto fileName = fs::path(EXECUTABLE_RELEASE).filename();
     if (!archive_file(zipFile, EXECUTABLE_RELEASE, fileName.string())){
         return false;
     }
 
     for (const auto& file : ADDITIONAL_FILES){
-        if (!archive_file(zipFile, file.first, file.second)){
+        std::string dest = file.second.empty() ? file.first:file.second;
+        if (!archive_file(zipFile, file.first, dest)){
             return false;
         }
     }
@@ -430,12 +329,12 @@ bool package(){
     return true;
 }
 
-bool run(std::string& path) {
-    auto p = std::filesystem::path(path.c_str());
+bool run(std::string path) {
+    auto p = fs::path(path.c_str());
     std::string file = p.filename().string();
     std::string folder = p.parent_path().string();
 
-    if (std::filesystem::exists(path)) {
+    if (fs::exists(path)) {
         // TODO: might not work on linux
         return run_command({"cd", folder, "&", file });
     }
@@ -519,9 +418,9 @@ bool run_option(std::string& option){
 
 bool relocate(){
     try {
-        auto path = std::filesystem::current_path();
+        auto path = fs::current_path();
         auto parentDir = path.parent_path();
-        std::filesystem::current_path(parentDir);
+        fs::current_path(parentDir);
         return true;
     } catch(std::exception const& ex){
         std::cerr << "Failed to relocate working directory!" << std::endl;
@@ -530,11 +429,11 @@ bool relocate(){
 }
 
 bool find_cmake_project(){
-    if (!std::filesystem::exists("CMakeLists.txt")){
+    if (!fs::exists("CMakeLists.txt")){
         //std::cout << "Execution directory does not contain CMakeLists.txt!" << std::endl;
         //std::cout << "Looking in parent directory..." << std::endl;
         if (relocate()){
-            if (std::filesystem::exists("CMakeLists.txt")){
+            if (fs::exists("CMakeLists.txt")){
                 //std::cout << "Found CMakeLists!" << std::endl;
                 return true;
             }else{
@@ -563,4 +462,118 @@ int main(int argc, char** argv) {
         return EXIT_SUCCESS;
     }
     return EXIT_FAILURE;
+}
+
+// UTILITY FUNCTIONS IMPLEMENTATION
+static bool subfiles_exist(std::string path) {
+    int count = 0;
+    for (const auto& file : fs::directory_iterator(path)){
+        if (!file.is_directory()){
+            count++;
+        }
+    }
+    return count > 0;
+}
+
+static std::string concat_sep(char sep, std::initializer_list<std::string> list) {
+    std::string result = "";
+    for (const auto elem : list) {
+        result += elem;
+        result += sep;
+    }
+    return result;
+}
+
+static bool make_dirs(std::string path){
+    try {
+        fs::create_directories(path);
+        return true;
+    } catch(fs::filesystem_error const& ex){
+        std::cerr << "Failed to create directories!" << std::endl;
+        std::cerr << ex.what() << std::endl;
+        return false;
+    }
+}
+
+static bool run_command(std::initializer_list<std::string> list){
+    if (!system(NULL)){
+        std::cerr << "No command processor found!" << std::endl;
+        return false;
+    }
+
+    std::string cmd = concat_sep(' ',list);
+    std::cout << ">> " << cmd << std::endl;
+
+    int code = system(cmd.c_str());
+    return code == 0;
+}
+
+static bool delete_recursive(std::string path){
+    try {
+        fs::remove_all(path);
+        return true;
+    } catch (fs::filesystem_error const& ex){
+        std::cerr << "Failed to remove directories!" << std::endl;
+        std::cerr << "TODO: You'll need to manually remove the folder for now." << std::endl;
+        std::cerr << ex.what() << std::endl;
+        return false;
+    }
+}
+
+static void print_table(Table table, int padding){
+    // calculate longest width first
+    int width = 0;
+    for (const auto& cmd : table){
+        int len = cmd.first.length();
+        if (len > width){
+            width = len;
+        }
+    }
+    width += padding;
+
+    // print the table
+    std::cout << std::endl;
+    for (const auto& cmd : table){
+
+        // pad string
+        std::stringstream displayName;
+        displayName << cmd.first;
+
+        int spaces = width - cmd.first.length();
+        for (int i = 0; i < spaces; i++){
+            displayName << " ";
+        }
+
+        std::cout << displayName.str() << cmd.second << std::endl;
+    }
+}
+
+static bool has_program(std::string program){
+    const char* pathVar = std::getenv("PATH");
+    if (pathVar == NULL){
+        std::cerr << "Could not determine PATH variable" << std::endl;
+        return false;
+    }
+
+#ifdef LINUX
+    char seperator = ':';
+#elif defined(WINDOWS)
+    char seperator = ';';
+#endif
+
+    // TODO: there is probably a faster way to do this
+    std::string path;
+    std::istringstream stream(pathVar);
+    while (std::getline(stream, path, ';')) {
+        auto folder = fs::path(path);
+        if (fs::exists(folder)) {
+            for (const auto& file : fs::directory_iterator(folder)) {
+                std::string stem = file.path().stem().string();
+                if (stem == program) {
+                    return true;
+                }
+            }
+        }
+    }
+    return false;
 }
