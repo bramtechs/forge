@@ -88,11 +88,14 @@ const wchar_t PATH_SEP = fs::path::preferred_separator;
 static bool subfiles_exist(std::string path);
 static bool make_dirs(std::string path);
 static std::string concat_sep(char sep, std::initializer_list<std::string> list);
+static std::string concat_sep(char sep, std::vector<std::string>& vec);
 static bool run_command(std::initializer_list<std::string> list);
+static bool run_command(std::vector<std::string> vec);
 static bool delete_recursive(std::string path);
 static void print_table(Table table, int padding=3);
 static bool has_program(std::string program);
-static bool make_archive(std::string output, std::vector<std::string> files);
+static bool make_archive(std::string output, std::vector<std::string>& files);
+static std::string get_date_string();
 
 // TODO: linux
 bool check(bool verbose=false){
@@ -288,8 +291,12 @@ bool package(){
         files.push_back(file);
     }
 
+    // generate fitting name for package
+    auto path = fs::current_path().filename().string();
+    std::string pkgName = path + '_' + get_date_string();
+
     // create the archive
-    std::string savePath = concat_sep(PATH_SEP,{RELEASES_DIRECTORY,"build.zip"});
+    std::string savePath = concat_sep(PATH_SEP,{RELEASES_DIRECTORY,pkgName});
     if (make_archive(savePath,files)){
         std::cout << "Wrote release archive" << std::endl;
     }else{
@@ -392,6 +399,7 @@ bool relocate(){
         auto path = fs::current_path();
         auto parentDir = path.parent_path();
         fs::current_path(parentDir);
+        std::cout << "Relocated to parent dir..." << std::endl;
         return true;
     } catch(std::exception const& ex){
         std::cerr << "Failed to relocate working directory!" << std::endl;
@@ -418,7 +426,6 @@ bool find_cmake_project(){
 }
 
 int main(int argc, char** argv) {
-
     std::string option = argc > 1 ? std::string(argv[1]):"";
     if (option == "help"){
         help();
@@ -448,11 +455,17 @@ static bool subfiles_exist(std::string path) {
 }
 
 static std::string concat_sep(char sep, std::initializer_list<std::string> list) {
+    auto vec = std::vector<std::string>{ list };
+    return concat_sep(sep, vec);
+}
+
+static std::string concat_sep(char sep, std::vector<std::string>& vec){
     std::string result = "";
-    for (const auto elem : list) {
+    for (const auto elem : vec) {
         result += elem;
         result += sep;
     }
+    result.erase(result.length() - 1, 1);
     return result;
 }
 
@@ -468,12 +481,16 @@ static bool make_dirs(std::string path){
 }
 
 static bool run_command(std::initializer_list<std::string> list){
+    return run_command(std::vector<std::string>{list});
+}
+
+static bool run_command(std::vector<std::string> vec){
     if (!system(NULL)){
         std::cerr << "No command processor found!" << std::endl;
         return false;
     }
 
-    std::string cmd = concat_sep(' ',list);
+    std::string cmd = concat_sep(' ',vec);
     std::cout << ">> " << cmd << std::endl;
 
     int code = system(cmd.c_str());
@@ -550,7 +567,57 @@ static bool has_program(std::string program){
     return false;
 }
 
-static bool make_archive(std::string output, std::vector<std::string> files){
-    std::cout << "TODO: Implement archives" << std::endl;
-    return false;
+#ifdef LINUX
+static bool make_archive(std::string output, std::vector<std::string>& files){
+
+    // check file extension
+    output = std::path(output).replace_extension(".tar.xz").string();
+
+    std::vector<std::string> cmd = {
+        "tar",
+        "cfJ",
+        output
+    };
+
+    for (const auto& file: files){
+        cmd.push_back(file);
+    }
+
+    return run_command(cmd);
+}
+#endif
+
+#ifdef WINDOWS
+static bool make_archive(std::string output, std::vector<std::string>& files){
+
+    // check file extension
+    output = fs::path(output).replace_extension(".zip").string();
+
+    std::string fileArray = concat_sep(',',files);
+
+    std::vector<std::string> ps = {
+        "Compress-Archive",
+        "-Path",
+        fileArray
+    };
+    ps.push_back("-DestinationPath");
+    ps.push_back(output);
+
+    std::string psCommand = "\"" + concat_sep(' ', ps) + "\"";
+
+    std::vector<std::string> cmd = {
+        "powershell",
+        "-c",
+        psCommand
+    };
+    return run_command(cmd);
+}
+#endif
+
+static std::string get_date_string(){
+    auto t = std::time(nullptr);
+    auto tm = *std::localtime(&t);
+    auto str = std::stringstream();
+    str << std::put_time(&tm, "%d-%m-%Y-%H-%M");
+    return str.str();
 }
