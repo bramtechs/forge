@@ -20,11 +20,11 @@ jobs:
           cl /EHsc /std:c++17 /O2 forge.cpp /DEBUG:FULL
           ./forge.exe help
       - name: Upload binaries to release
-            uses: svenstaro/upload-release-action@v2
-            with:
-              repo_token: ${{ secrets.GITHUB_TOKEN }}
-              file: forge.exe
-              asset_name: forge.exe
-              tag: ${{ github.ref }}
-              overwrite: true
-              body: "forge"
+        uses: svenstaro/upload-release-action@v2
+        with:
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
+          file: forge.exe
+          asset_name: forge.exe
+          tag: ${{ github.ref }}
+          overwrite: true
+          body: "forge"
