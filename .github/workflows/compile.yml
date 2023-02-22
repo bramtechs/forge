@@ -18,7 +18,10 @@ jobs:
         with:
           arch: ${{ matrix.arch }}
       - name: MSVC compilation
-        run: cl.exe /EHsc /std:c++17 /O2 forge.cpp /DEBUG:FULL & forge.exe help
+        run: |
+          cl.exe /EHsc /std:c++17 /O2 forge.cpp /DEBUG:FULL
+          ls
+          forge.exe help
 
       - name: "Upload binary"
         uses: "marvinpinto/action-automatic-releases@latest"
