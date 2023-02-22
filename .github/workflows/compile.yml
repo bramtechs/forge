@@ -18,7 +18,7 @@ jobs:
       - name: MSVC compilation
         run: |
           cl /EHsc /std:c++17 /O2 forge.cpp /DEBUG:FULL
-          forge.exe help
+          ./forge.exe help
 
       - name: "Upload binary"
         uses: "marvinpinto/action-automatic-releases@latest"
