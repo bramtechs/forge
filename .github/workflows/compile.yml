@@ -18,7 +18,6 @@ jobs:
         with:
           arch: ${{ matrix.arch }}
       - name: MSVC compilation
-        shell: cmd
         run: cl.exe /EHsc /std:c++17 /O2 forge.cpp /DEBUG:FULL & forge.exe help
 
       - name: "Upload binary"
