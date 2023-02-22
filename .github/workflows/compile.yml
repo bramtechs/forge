@@ -13,11 +13,12 @@ jobs:
         uses: actions/checkout@v2
         with:
           submodules: recursive
-      - name: MSVC setup + compilation
+      - name: MSVC setup
         uses: ilammy/msvc-dev-cmd@v1
-        run: dir & forge.bat help
         with:
           arch: ${{ matrix.arch }}
+      - name: MSVC compilation
+        run: call forge.bat help
       - name: "Upload binary"
         uses: "marvinpinto/action-automatic-releases@latest"
         with:
