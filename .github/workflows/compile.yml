@@ -18,8 +18,8 @@ jobs:
         with:
           arch: ${{ matrix.arch }}
       - name: MSVC compilation 
-        run: |
-          forge.bat help
+        shell: cmd
+        run: dir & forge.bat help
       - name: "Upload binary"
         uses: "marvinpinto/action-automatic-releases@latest"
         with:
