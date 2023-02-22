@@ -14,30 +14,29 @@
 
 #define CHECK_GITIGNORE
 
+
 std::string RELEASES_DIRECTORY = "releases";
-std::string BUILD_DIRECTORY = "build";
+std::string BUILD_DIRECTORY    = "build";
 
 // executable file
 #ifdef LINUX
-const std::string EXECUTABLE_DEBUG = "build/Debug/forge_example.exe";
-const std::string EXECUTABLE_RELEASE = "build/Release/forge_example.exe";
-#elif defined(WINDOWS)
-// TODO:
-std::string EXECUTABLE_DEBUG = "build/Debug/forge_example.exe";
-std::string EXECUTABLE_RELEASE = "build/Release/forge_example.exe";
-#endif
 
-// cmake generator
-#ifdef LINUX
-std::string CMAKE_GENERATOR = "CodeBlocks - Unix Makefiles";
+std::string CMAKE_GENERATOR    = "CodeBlocks - Unix Makefiles";
+std::string EXECUTABLE_DEBUG   = "build/Debug/forge_example.exe";
+std::string EXECUTABLE_RELEASE = "build/Release/forge_example.exe";
+
 #elif defined(WINDOWS)
-std::string CMAKE_GENERATOR = "Visual Studio 17 2022";
+
+std::string CMAKE_GENERATOR    = "Visual Studio 17 2022";
+std::string EXECUTABLE_DEBUG   = "build/Debug/forge_example.exe";
+std::string EXECUTABLE_RELEASE = "build/Release/forge_example.exe";
+constexpr bool COMPILE_32BIT   = true;
+
 #endif
 
 // additional files/folders that should be packaged in zip (package command)
-std::unordered_map<std::string,std::string> ADDITIONAL_FILES = {
-    { "src", "source" },
-    { "LICENSE.txt", ""}
+std::vector<std::string> ADDITIONAL_FILES = {
+    "LICENSE.txt"
 };
 
 // Necessary tools to build the program (searches in PATH)
@@ -64,8 +63,8 @@ std::vector<std::pair<std::string,std::string>> REQUIRED_REPOS = {
 #include <initializer_list>
 #include <filesystem>
 #include <sstream>
+#include <fstream>
 #include <thread>
-#include "zip_file.hpp"
 
 #ifdef __linux__
 #include <string.h>
@@ -93,6 +92,7 @@ static bool run_command(std::initializer_list<std::string> list);
 static bool delete_recursive(std::string path);
 static void print_table(Table table, int padding=3);
 static bool has_program(std::string program);
+static bool make_archive(std::string output, std::vector<std::string> files);
 
 // TODO: linux
 bool check(bool verbose=false){
@@ -174,7 +174,9 @@ bool download() {
     return true;
 }
 
-void insert_if_missing(std::stringstream& stream, const std::string& text){
+// TODO: this is awful
+void insert_if_missing(std::string* content, const std::string& text){
+    std::stringstream stream(*content);
     std::string line;
     while (std::getline(stream,line)){
         if (line == text){
@@ -183,8 +185,8 @@ void insert_if_missing(std::stringstream& stream, const std::string& text){
         }
     }
     // add text to stream
-    stream << std::endl << text;
-    std::cout << "Added " << text << " to .gitignore" << std::endl;
+    *content = stream.str() + '\n' + text;
+    std::cout << "Added " << *content << " to .gitignore" << std::endl;
 }
 
 #ifdef CHECK_GITIGNORE
@@ -195,21 +197,22 @@ void check_gitignore() {
         // read the file
         std::ifstream ignoreFile(".gitignore");
         std::string content;
-        ignoreFile >> content;
+        std::string line;
+        while (std::getline(ignoreFile, line)) {
+            content += line + '\n';
+        }
         ignoreFile.close();
 
 
         // process file text 
-        std::stringstream stream(content);
+        insert_if_missing(&content, BUILD_DIRECTORY);
+        insert_if_missing(&content, RELEASES_DIRECTORY);
 
-        insert_if_missing(stream, BUILD_DIRECTORY);
-        insert_if_missing(stream, RELEASES_DIRECTORY);
-
-        std::cout << stream.str() << std::endl;
+        std::cout << content << std::endl;
 
         // write back into file
         std::ofstream ignoreFileOut(".gitignore");
-        ignoreFileOut << stream.str();
+        ignoreFileOut << content;
         ignoreFileOut.close();
     }
 }
@@ -225,10 +228,14 @@ bool generate() {
     }
 
     std::cout << "Generating cmake project..." << std::endl;
+    std::string genFull = "\"" + CMAKE_GENERATOR + "\"";
 #ifdef LINUX
-    return run_command({"cmake", "-S", ".", "-B", "build", "-G", "\"",CMAKE_GENERATOR,"\"" });
+    return run_command({"cmake", "-S", ".", "-B", "build", "-G", genFull });
 #elif defined(WINDOWS)
-    return run_command({"cmake", "-S", ".", "-B", "build", "-G", "\"", CMAKE_GENERATOR,"\"", "-A", "Win32"});
+    if (COMPILE_32BIT){
+        return run_command({"cmake", "-S", ".", "-B", "build", "-G", genFull, "-A", "Win32"});
+    }
+    return run_command({"cmake", "-S", ".", "-B", "build", "-G", genFull});
 #endif
 }
 
@@ -262,38 +269,6 @@ bool release() {
     return run_command({"cmake", "--build", "build", "--config", "Release"});
 }
 
-bool archive_file(miniz_cpp::zip_file& file, std::string source,
-                                             std::string dest){
-    if (!fs::exists(source)){
-        std::cerr << "Could not find file " << source << " to archive!" << std::endl;
-        return false;
-    }
-
-    // read file bytes
-    std::string data;
-    try {
-        std::ifstream stream(source);
-        std::stringstream buffer;
-        buffer << stream.rdbuf();
-        data = buffer.str();
-    } catch (std::exception const& ex){
-        std::cerr << "Failed to read file data of " << source << std::endl;
-        std::cerr << ex.what() << std::endl;
-        return false;
-    }
-
-    try {
-        // write into archive
-        std::cout << data << std::endl;
-        file.writestr(dest, data);
-    } catch(std::runtime_error const& ex){
-        std::cerr << "Failed to write file " << source << " into archive at " << dest << std::endl;
-        std::cerr << ex.what() << std::endl;
-        return false;
-    }
-
-    return true;
-}
 
 bool package(){
     std::cout << "Compiling and packaging release build!" << std::endl;
@@ -306,25 +281,21 @@ bool package(){
         return false;
     }
 
-    // package all the things
-    miniz_cpp::zip_file zipFile;
+    // list files to be archived
+    std::vector<std::string> files;
+    files.push_back(EXECUTABLE_RELEASE);
+    for (const auto& file : ADDITIONAL_FILES){
+        files.push_back(file);
+    }
 
-    auto fileName = fs::path(EXECUTABLE_RELEASE).filename();
-    if (!archive_file(zipFile, EXECUTABLE_RELEASE, fileName.string())){
+    // create the archive
+    std::string savePath = concat_sep(PATH_SEP,{RELEASES_DIRECTORY,"build.zip"});
+    if (make_archive(savePath,files)){
+        std::cout << "Wrote release archive" << std::endl;
+    }else{
+        std::cerr << "Failed to write release archive!" << std::endl;
         return false;
     }
-
-    for (const auto& file : ADDITIONAL_FILES){
-        std::string dest = file.second.empty() ? file.first:file.second;
-        if (!archive_file(zipFile, file.first, dest)){
-            return false;
-        }
-    }
-
-    // save the archive
-    std::string savePath = concat_sep(PATH_SEP,{RELEASES_DIRECTORY,"build.zip"});
-    zipFile.save(savePath);
-    std::cout << "Wrote release archive!" << std::endl;
 
     return true;
 }
@@ -447,6 +418,7 @@ bool find_cmake_project(){
 }
 
 int main(int argc, char** argv) {
+
     std::string option = argc > 1 ? std::string(argv[1]):"";
     if (option == "help"){
         help();
@@ -575,5 +547,10 @@ static bool has_program(std::string program){
             }
         }
     }
+    return false;
+}
+
+static bool make_archive(std::string output, std::vector<std::string> files){
+    std::cout << "TODO: Implement archives" << std::endl;
     return false;
 }

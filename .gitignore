@@ -7,3 +7,6 @@ forge
 forge.vc*
 x64
 dev.txt
+
+build
+releases
