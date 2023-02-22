@@ -9,18 +9,15 @@ jobs:
     # Run a job for each of the specified target architectures:
     runs-on: 'windows-latest'
     steps:
-      - name: Checkout the sauce 
+      - name: Checkout the sauce
         uses: actions/checkout@v2
         with:
           submodules: recursive
       - name: MSVC setup
         uses: ilammy/msvc-dev-cmd@v1
-        with:
-          arch: ${{ matrix.arch }}
       - name: MSVC compilation
         run: |
-          cl.exe /EHsc /std:c++17 /O2 forge.cpp /DEBUG:FULL
-          ls
+          cl /EHsc /std:c++17 /O2 forge.cpp /DEBUG:FULL
           forge.exe help
 
       - name: "Upload binary"
