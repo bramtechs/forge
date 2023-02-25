@@ -571,7 +571,7 @@ static bool has_program(std::string program){
 static bool make_archive(std::string output, std::vector<std::string>& files){
 
     // check file extension
-    output = std::path(output).replace_extension(".tar.xz").string();
+    output = fs::path(output).replace_extension(".tar.xz").string();
 
     std::vector<std::string> cmd = {
         "tar",
